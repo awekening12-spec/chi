@@ -1,1 +1,1 @@
-{"description":"Chiikawa desktop pet","devDependencies":{"@tauri-apps/cli":"^2.0.0"},"main":"src/main.js","name":"chiikawa-pet","scripts":{"tauri":"tauri"},"version":"1.0.0"}
+{"description":"Chiikawa desktop pet","devDependencies":{"@tauri-apps/cli":"^2.0.0"},"main":"src/main.js","name":"chiikawa-pet","scripts":{"tauri":"tauri"},"version":"1.0.0","dependencies":{"@tauri-apps/api":"^2.12.3"}}

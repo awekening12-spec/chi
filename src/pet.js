@@ -1,3 +1,6 @@
+import { getCurrentWindow } from './tauri-api/window.js';
+import { listen } from './tauri-api/event.js';
+
 // Pet Window - 자율 이동
 const COLS = 8, ROWS = 11, CELL_W = 192, CELL_H = 208;
 let frame = 0, currentRow = 0;
@@ -26,28 +29,21 @@ function draw() {
 
 // Tauri 윈도우 이동
 async function moveWindow() {
-  if (window.__TAURI__) {
-    const { getCurrentWindow } = window.__TAURI__.window;
+  try {
     const win = getCurrentWindow();
     await win.setPosition({ x: Math.round(x), y: Math.round(y), type: 'Physical' });
-  }
+  } catch(e) {}
 }
 
 let stopped = false;
 
 // Tauri 이벤트: 정지
-if (window.__TAURI__) {
-  const { listen } = window.__TAURI__.event;
-  listen('pet-stop', () => { stopped = !stopped; });
-}
+listen('pet-stop', () => { stopped = !stopped; }).catch(()=>{});
 
 // 우클릭으로 제거
 document.addEventListener('contextmenu', async (e) => {
   e.preventDefault();
-  if (window.__TAURI__) {
-    const { getCurrentWindow } = window.__TAURI__.window;
-    await getCurrentWindow().close();
-  }
+  try { await getCurrentWindow().close(); } catch(err) {}
 });
 
 // 상태머신: idle <-> walk
