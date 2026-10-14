@@ -1,13 +1,14 @@
 {
   "identifier": "main",
-  "windows": ["*"],
+  "windows": [
+    "*"
+  ],
   "permissions": [
     "core:default",
-    "webviewWindow:allow-create",
-    "webviewWindow:allow-close",
     "window:allow-close",
     "window:allow-set-position",
     "window:allow-set-size",
+    "window:allow-create",
     "event:allow-emit",
     "event:allow-listen"
   ]

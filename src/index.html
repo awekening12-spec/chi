@@ -54,9 +54,6 @@ footer p{font-size:11px;color:var(--sub)}
 .fbtn{padding:10px 24px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .fbtn.p{background:var(--text);color:#fff}.fbtn.g{background:var(--bg);color:var(--text);border:1px solid var(--line)}
 </style>
-<script type="importmap">
-{"imports": {"@tauri-apps/api/webviewWindow": "./tauri-api/webviewWindow.js", "@tauri-apps/api/window": "./tauri-api/window.js", "@tauri-apps/api/event": "./tauri-api/event.js", "@tauri-apps/api/core": "./tauri-api/core.js", "@tauri-apps/api/dpi": "./tauri-api/dpi.js", "@tauri-apps/api/image": "./tauri-api/image.js", "@tauri-apps/api/webview": "./tauri-api/webview.js"}}
-</script>
 </head>
 <body>
 <div class="app">
@@ -92,8 +89,7 @@ footer p{font-size:11px;color:var(--sub)}
 </div>
 </footer>
 </div>
-<script type="module">
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+<script>
 'use strict';
 /* ===== 상수 ===== */
 const CHARS=[
@@ -123,7 +119,7 @@ let pets=[];
 let uid=0;
 /* ===== 유틸 ===== */
 const $=id=>document.getElementById(id);
-const isTauri=()=>true; // ES module loaded = Tauri v2
+const isTauri=()=>!!(window.__TAURI__&&window.__TAURI__.webviewWindow);
 function safeLS(k,v){
 try{
 if(v===undefined)return localStorage.getItem(k);
@@ -138,7 +134,7 @@ if(pets.length>=MAX_PETS){alert(`최대 ${MAX_PETS}마리까지 가능합니다`
 if(!isTauri()){alert('Tauri 환경에서 실행해주세요');return;}
 const label=`pet-${Date.now()}-${(++uid).toString(36)}`;
 try{
-// WebviewWindow imported from @tauri-apps/api/webviewWindow
+const {WebviewWindow}=window.__TAURI__.webviewWindow;
 const win=new WebviewWindow(label,{
 url:`pet.html?pet=${encodeURIComponent(charId)}`,
 title:ch[1],width:220,height:240,
