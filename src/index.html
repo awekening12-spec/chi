@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ちいかわ 펫</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#FAFAF8;--white:#FFF;--line:#EDEDE8;--text:#1A1A1A;--sub:#6B6B6B;--accent:#FF6B6B;--accent-bg:#FFF0F0}
+body{font-family:'Pretendard',-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+@font-face{font-family:'Pretendard';src:url('assets/Pretendard.ttf')format('truetype');font-display:swap}
+.app{max-width:1024px;margin:0 auto;min-height:100vh;background:var(--white);box-shadow:0 0 40px rgba(0,0,0,.04)}
+header{padding:24px 40px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px}
+header img{width:48px;height:52px;image-rendering:pixelated}
+header h1{font-size:20px;font-weight:700;letter-spacing:-.3px}
+header p{font-size:12px;color:var(--sub);margin-top:3px}
+.hact{margin-left:auto;display:flex;gap:8px}
+.hbtn{padding:9px 18px;border:1px solid var(--line);background:var(--white);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
+.hbtn:hover{background:var(--bg);border-color:var(--text)}
+.tabs{display:flex;border-bottom:1px solid var(--line);padding:0 40px}
+.tabs button{padding:14px 20px;background:none;border:none;font-size:14px;font-weight:600;color:var(--sub);cursor:pointer;position:relative;font-family:inherit}
+.tabs button.active{color:var(--text)}
+.tabs button.active::after{content:'';position:absolute;bottom:-1px;left:20px;right:20px;height:2px;background:var(--text);border-radius:2px}
+#settings{display:none;padding:24px 40px;background:var(--bg);border-bottom:1px solid var(--line)}
+#settings h3{font-size:15px;margin-bottom:14px}
+#settings h3:not(:first-child){margin-top:20px}
+.themes{display:flex;gap:10px}
+.theme-btn{width:48px;height:48px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:.15s}
+.theme-btn.sel{border-color:#1a1a1a}
+main{padding:32px 40px}
+.grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
+.card{flex:0 0 calc(25% - 11px);min-width:180px;background:var(--white);border:1px solid var(--line);border-radius:14px;padding:24px 16px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--card-accent,var(--accent));opacity:0;transition:.2s}
+.card:hover{border-color:var(--text);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.card:hover::before{opacity:1}
+.card img{width:64px;height:69px;image-rendering:pixelated;margin-bottom:12px;transition:.2s}
+.card:hover img{transform:scale(1.08)}
+.card .n{font-size:14px;font-weight:600}
+.card .e{font-size:10px;color:var(--sub);letter-spacing:1px;margin-top:4px;text-transform:uppercase}
+h2.sec{font-size:16px;font-weight:700;margin:36px 0 16px;letter-spacing:-.2px}
+h2.sec span{font-weight:400;color:var(--sub);font-size:13px}
+.prow{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.prow img{width:44px;height:48px;image-rendering:pixelated}
+.prow .i{flex:1}.prow .n{font-size:14px;font-weight:600}.prow .s{font-size:12px;color:var(--sub);margin-top:2px}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px}
+.dot.on{background:#22C55E}.dot.off{background:#F59E0B}
+.pbtn{padding:8px 18px;border:1px solid var(--line);background:var(--white);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
+.pbtn:hover{background:var(--bg)}
+.pbtn.danger{color:var(--accent);border-color:#FECACA}
+.pbtn.danger:hover{background:var(--accent-bg)}
+.empty{padding:48px;text-align:center;color:var(--sub);font-size:14px;border:1px dashed var(--line);border-radius:14px}
+footer{padding:24px 40px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+footer p{font-size:11px;color:var(--sub)}
+.fbtn{padding:10px 24px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.fbtn.p{background:var(--text);color:#fff}.fbtn.g{background:var(--bg);color:var(--text);border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<img src="assets/thumb_chiikawa.png" alt="치이카와">
+<div><h1>ちいかわ 펫</h1><p>Desktop Pet Manager</p></div>
+<div class="hact">
+<button class="hbtn" id="btnSettings">설정</button>
+<button class="hbtn" id="btnStopAll">전체 정지</button>
+</div>
+</header>
+<nav class="tabs">
+<button class="active" data-tab="chars">캐릭터</button>
+<button data-tab="pets">내 펫</button>
+</nav>
+<section id="settings">
+<h3>테마 색상 <span style="font-weight:400;color:var(--sub);font-size:12px">— 파스텔톤</span></h3>
+<div class="themes" id="themes"></div>
+<h3>펫 크기</h3>
+<div><input type="range" id="petSize" min="0.7" max="1.5" step="0.1" value="1" style="width:200px;vertical-align:middle">
+<span id="sizeVal" style="margin-left:8px;font-size:13px">100%</span></div>
+</section>
+<main>
+<div class="grid" id="grid" role="list"></div>
+<h2 class="sec" id="mypets">내 펫 <span id="cnt"></span></h2>
+<div id="list"></div>
+</main>
+<footer>
+<p>© 2026 Chiikawa Pet — Fan Project</p>
+<div style="display:flex;gap:8px">
+<button class="fbtn g" id="btnStopAll2">전체 정지</button>
+<button class="fbtn p" id="btnRemoveAll">전체 제거</button>
+</div>
+</footer>
+</div>
+<script>
+'use strict';
+/* ===== 상수 ===== */
+const CHARS=[
+['chiikawa','치이카와','CHIIKAWA','#FFB6C1'],
+['hachiware','하치와레','HACHIWARE','#7DD3FC'],
+['usagi','우사기','USAGI','#FDE68A'],
+['momonga','모몽가','MOMONGA','#C4B5FD'],
+['shisa','시사','SHISA','#FDBA74'],
+['rakko','랏코','RAKKO','#7FDBCA'],
+['kurimanju','쿠리만주','KURIMANJU','#FCA5A5'],
+['siren','세이렌','SIREN','#93C5FD'],
+['furuhonya','후루혼야','FURUHONYA','#F9A8D4'],
+['anoko','아노코','ANOKO','#A5B4FC'],
+['dekatsuyo','데카츠요','DEKATSUYO','#FDE047'],
+];
+const THEMES=[
+{n:'핑크',c:'#FFB6C1',bg:'#FFF5F7'},
+{n:'민트',c:'#7FDBCA',bg:'#F0FDF9'},
+{n:'라벤더',c:'#C4B5FD',bg:'#F8F5FF'},
+{n:'피치',c:'#FDBA74',bg:'#FFF8F0'},
+{n:'스카이',c:'#7DD3FC',bg:'#F0F9FF'},
+{n:'레몬',c:'#FDE68A',bg:'#FFFEF5'},
+];
+const MAX_PETS=20;
+/* ===== 상태 ===== */
+let pets=[];
+let uid=0;
+/* ===== 유틸 ===== */
+const $=id=>document.getElementById(id);
+const isTauri=()=>!!(window.__TAURI__&&window.__TAURI__.webviewWindow);
+function safeLS(k,v){
+try{
+if(v===undefined)return localStorage.getItem(k);
+localStorage.setItem(k,v);return true;
+}catch(e){return v===undefined?null:false;}
+}
+/* ===== 펫 관리 ===== */
+async function addPet(charId){
+const ch=CHARS.find(c=>c[0]===charId);
+if(!ch){console.error('Unknown char:',charId);return;}
+if(pets.length>=MAX_PETS){alert(`최대 ${MAX_PETS}마리까지 가능합니다`);return;}
+if(!isTauri()){alert('Tauri 환경에서 실행해주세요');return;}
+const label=`pet-${Date.now()}-${(++uid).toString(36)}`;
+try{
+const {WebviewWindow}=window.__TAURI__.webviewWindow;
+const win=new WebviewWindow(label,{
+url:`pet.html?pet=${encodeURIComponent(charId)}`,
+title:ch[1],width:220,height:240,
+decorations:false,transparent:true,alwaysOnTop:true,
+resizable:false,skipTaskbar:true,
+});
+const pet={uid:uid,label,id:charId,name:ch[1],win,stopped:false,createdAt:Date.now()};
+pets.push(pet);
+// 창이 닫히면 목록에서 제거
+win.onCloseRequested(()=>{removePetByUid(pet.uid);});
+renderPets();
+}catch(e){
+console.error('펫 생성 실패:',e);
+alert('펫 생성에 실패했습니다');
+}
+}
+function removePetByUid(u){
+const i=pets.findIndex(p=>p.uid===u);
+if(i>=0){pets.splice(i,1);renderPets();}
+}
+async function togglePet(u){
+const p=pets.find(x=>x.uid===u);
+if(!p)return;
+p.stopped=!p.stopped;
+try{await p.win.emit('pet-stop');}catch(e){console.warn('emit 실패:',e);}
+renderPets();
+}
+async function removePet(u){
+const p=pets.find(x=>x.uid===u);
+if(!p)return;
+try{await p.win.close();}catch(e){console.warn('close 실패:',e);}
+removePetByUid(u);
+}
+async function stopAll(){
+const jobs=pets.filter(p=>!p.stopped).map(async p=>{
+p.stopped=true;
+try{await p.win.emit('pet-stop');}catch(e){}
+});
+await Promise.allSettled(jobs);
+renderPets();
+}
+async function removeAll(){
+const jobs=pets.map(async p=>{try{await p.win.close();}catch(e){}});
+await Promise.allSettled(jobs);
+pets=[];
+renderPets();
+}
+/* ===== 렌더링 ===== */
+function renderChars(){
+const g=$('grid');g.innerHTML='';
+CHARS.forEach(([id,name,en,color])=>{
+const d=document.createElement('div');
+d.className='card';d.setAttribute('role','listitem');d.tabIndex=0;
+d.style.setProperty('--card-accent',color);
+d.innerHTML=`<img src="assets/thumb_${id}.png" alt="${name}"><div class="n">${name}</div><div class="e">${en}</div>`;
+d.addEventListener('click',()=>addPet(id));
+d.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();addPet(id);}});
+g.appendChild(d);
+});
+}
+function renderPets(){
+const el=$('list');
+$('cnt').textContent=pets.length?`· ${pets.length}마리`:'';
+if(!pets.length){el.innerHTML='<div class="empty">캐릭터를 선택해 펫을 추가하세요</div>';return;}
+el.innerHTML='';
+pets.forEach(p=>{
+const d=document.createElement('div');d.className='prow';
+d.innerHTML=`<img src="assets/thumb_${p.id}.png" alt="${p.name}">`+
+`<div class="i"><div class="n">${p.name}</div>`+
+`<div class="s"><span class="dot ${p.stopped?'off':'on'}"></span>${p.stopped?'정지됨':'활동 중'}</div></div>`;
+const bT=document.createElement('button');bT.className='pbtn';bT.textContent=p.stopped?'재개':'정지';
+bT.addEventListener('click',()=>togglePet(p.uid));
+const bR=document.createElement('button');bR.className='pbtn danger';bR.textContent='제거';
+bR.addEventListener('click',()=>removePet(p.uid));
+d.append(bT,bR);el.appendChild(d);
+});
+}
+/* ===== 테마 ===== */
+function renderThemes(){
+const te=$('themes');te.innerHTML='';
+THEMES.forEach((t,i)=>{
+const b=document.createElement('button');
+b.className='theme-btn'+(i===0?' sel':'');
+b.style.background=t.c;b.title=t.n;b.setAttribute('aria-label',t.n+' 테마');
+b.addEventListener('click',()=>setTheme(i));
+te.appendChild(b);
+});
+}
+function setTheme(i){
+const t=THEMES[i];if(!t)return;
+document.documentElement.style.setProperty('--accent',t.c);
+document.body.style.background=t.bg;
+[...$('themes').children].forEach((b,j)=>b.classList.toggle('sel',j===i));
+safeLS('chiikawa-theme',String(i));
+}
+/* ===== 설정 ===== */
+function toggleSettings(){
+const s=$('settings');
+s.style.display=s.style.display==='block'?'none':'block';
+}
+function setSize(v){
+v=parseFloat(v);
+if(isNaN(v)||v<0.5||v>2)return;
+$('sizeVal').textContent=Math.round(v*100)+'%';
+safeLS('chiikawa-size',String(v));
+}
+/* ===== 탭 ===== */
+document.querySelectorAll('.tabs button').forEach(b=>{
+b.addEventListener('click',()=>{
+document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));
+b.classList.add('active');
+if(b.dataset.tab==='pets')$('mypets').scrollIntoView({behavior:'smooth'});
+else window.scrollTo({top:0,behavior:'smooth'});
+});
+});
+/* ===== 이벤트 바인딩 ===== */
+$('btnSettings').addEventListener('click',toggleSettings);
+$('btnStopAll').addEventListener('click',stopAll);
+$('btnStopAll2').addEventListener('click',stopAll);
+$('btnRemoveAll').addEventListener('click',()=>{
+if(pets.length&&confirm(`${pets.length}마리를 모두 제거할까요?`))removeAll();
+});
+$('petSize').addEventListener('input',e=>setSize(e.target.value));
+/* ===== 초기화 ===== */
+(function init(){
+renderChars();renderThemes();renderPets();
+const st=safeLS('chiikawa-theme');
+if(st!==null&&THEMES[+st])setTheme(+st);
+const sz=safeLS('chiikawa-size');
+if(sz!==null){$('petSize').value=sz;setSize(sz);}
+})();
+</script>
+</body>
+</html>
