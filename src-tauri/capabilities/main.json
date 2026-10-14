@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.tauri.app/config/2/capability",
+  "identifier": "main",
+  "description": "Main window capabilities for Chiikawa Pet",
+  "windows": ["main"],
+  "permissions": [
+    "webviewWindow:allow-create",
+    "webviewWindow:allow-close",
+    "webviewWindow:allow-set-title",
+    "webviewWindow:allow-show",
+    "webviewWindow:allow-hide",
+    "window:allow-close",
+    "window:allow-set-position",
+    "window:allow-set-size",
+    "event:allow-emit",
+    "event:allow-listen"
+  ]
+}
