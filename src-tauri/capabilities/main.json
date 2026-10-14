@@ -1,14 +1,5 @@
 {
   "identifier": "main",
-  "description": "Capabilities for Chiikawa Pet",
   "windows": ["*"],
-  "permissions": [
-    "webviewWindow:allow-create",
-    "webviewWindow:allow-close",
-    "window:allow-close",
-    "window:allow-set-position",
-    "window:allow-set-size",
-    "event:allow-emit",
-    "event:allow-listen"
-  ]
+  "permissions": ["core:default"]
 }
