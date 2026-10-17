@@ -1,14 +1,13 @@
 {
   "identifier": "main",
-  "windows": ["*"],
+  "description": "Chiikawa Pet capabilities",
+  "windows": ["main", "pet-*"],
   "permissions": [
     "core:default",
     "core:window:allow-close",
     "core:window:allow-set-position",
     "core:window:allow-set-size",
-    "core:window:allow-create",
     "core:event:allow-emit",
-    "core:event:allow-listen",
-    "core:webview:allow-create-webview-window"
+    "core:event:allow-listen"
   ]
 }

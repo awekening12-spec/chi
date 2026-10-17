@@ -26,28 +26,31 @@ function draw() {
 
 // Tauri 윈도우 이동
 async function moveWindow() {
-  if (window.__TAURI__) {
-    const { getCurrentWindow } = window.__TAURI__.window;
-    const win = getCurrentWindow();
-    await win.setPosition({ x: Math.round(x), y: Math.round(y), type: 'Physical' });
-  }
+  try {
+    if (window.__TAURI__ && window.__TAURI__.window) {
+      const win = window.__TAURI__.window.getCurrentWindow();
+      await win.setPosition(new window.__TAURI__.window.PhysicalPosition(Math.round(x), Math.round(y)));
+    }
+  } catch(e) {}
 }
 
 let stopped = false;
 
 // Tauri 이벤트: 정지
-if (window.__TAURI__) {
-  const { listen } = window.__TAURI__.event;
-  listen('pet-stop', () => { stopped = !stopped; });
-}
+try {
+  if (window.__TAURI__ && window.__TAURI__.event) {
+    window.__TAURI__.event.listen('pet-stop', () => { stopped = !stopped; }).catch(()=>{});
+  }
+} catch(e) {}
 
 // 우클릭으로 제거
 document.addEventListener('contextmenu', async (e) => {
   e.preventDefault();
-  if (window.__TAURI__) {
-    const { getCurrentWindow } = window.__TAURI__.window;
-    await getCurrentWindow().close();
-  }
+  try {
+    if (window.__TAURI__ && window.__TAURI__.window) {
+      await window.__TAURI__.window.getCurrentWindow().close();
+    }
+  } catch(err) {}
 });
 
 // 상태머신: idle <-> walk

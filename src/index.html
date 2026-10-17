@@ -119,7 +119,7 @@ let pets=[];
 let uid=0;
 /* ===== 유틸 ===== */
 const $=id=>document.getElementById(id);
-const isTauri=()=>!!(window.__TAURI__&&window.__TAURI__.webviewWindow);
+const isTauri=()=>!!(window.__TAURI__&&window.__TAURI__.core);
 function safeLS(k,v){
 try{
 if(v===undefined)return localStorage.getItem(k);
@@ -134,21 +134,13 @@ if(pets.length>=MAX_PETS){alert(`최대 ${MAX_PETS}마리까지 가능합니다`
 if(!isTauri()){alert('Tauri 환경에서 실행해주세요');return;}
 const label=`pet-${Date.now()}-${(++uid).toString(36)}`;
 try{
-const {WebviewWindow}=window.__TAURI__.webviewWindow;
-const win=new WebviewWindow(label,{
-url:`pet.html?pet=${encodeURIComponent(charId)}`,
-title:ch[1],width:220,height:240,
-decorations:false,transparent:true,alwaysOnTop:true,
-resizable:false,skipTaskbar:true,
-});
-const pet={uid:uid,label,id:charId,name:ch[1],win,stopped:false,createdAt:Date.now()};
+await window.__TAURI__.core.invoke('create_pet',{label,charId:charId,title:ch[1]});
+const pet={uid:uid,label,id:charId,name:ch[1],stopped:false,createdAt:Date.now()};
 pets.push(pet);
-// 창이 닫히면 목록에서 제거
-win.onCloseRequested(()=>{removePetByUid(pet.uid);});
 renderPets();
 }catch(e){
 console.error('펫 생성 실패:',e);
-alert('펫 생성에 실패했습니다');
+alert('펫 생성에 실패했습니다: '+e);
 }
 }
 function removePetByUid(u){
@@ -159,25 +151,25 @@ async function togglePet(u){
 const p=pets.find(x=>x.uid===u);
 if(!p)return;
 p.stopped=!p.stopped;
-try{await p.win.emit('pet-stop');}catch(e){console.warn('emit 실패:',e);}
+try{await window.__TAURI__.core.invoke('emit_pet_stop',{label:p.label});}catch(e){console.warn('emit 실패:',e);}
 renderPets();
 }
 async function removePet(u){
 const p=pets.find(x=>x.uid===u);
 if(!p)return;
-try{await p.win.close();}catch(e){console.warn('close 실패:',e);}
+try{await window.__TAURI__.core.invoke('close_pet',{label:p.label});}catch(e){console.warn('close 실패:',e);}
 removePetByUid(u);
 }
 async function stopAll(){
 const jobs=pets.filter(p=>!p.stopped).map(async p=>{
 p.stopped=true;
-try{await p.win.emit('pet-stop');}catch(e){}
+try{await window.__TAURI__.core.invoke('emit_pet_stop',{label:p.label});}catch(e){}
 });
 await Promise.allSettled(jobs);
 renderPets();
 }
 async function removeAll(){
-const jobs=pets.map(async p=>{try{await p.win.close();}catch(e){}});
+const jobs=pets.map(async p=>{try{await window.__TAURI__.core.invoke('close_pet',{label:p.label});}catch(e){}});
 await Promise.allSettled(jobs);
 pets=[];
 renderPets();
