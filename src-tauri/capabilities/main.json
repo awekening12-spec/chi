@@ -7,7 +7,9 @@
     "core:window:allow-close",
     "core:window:allow-set-position",
     "core:window:allow-set-size",
+    "core:window:allow-create",
     "core:event:allow-emit",
-    "core:event:allow-listen"
+    "core:event:allow-listen",
+    "core:webview:allow-create-webview-window"
   ]
 }
