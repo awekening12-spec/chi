@@ -1,1 +1,199 @@
-{"$schema":"https://schema.tauri.app/config/2","app":{"windows":[{"height":680,"label":"main","resizable":true,"title":"Chiikawa Pet - 컨트롤 패널","width":560},{"alwaysOnTop":true,"decorations":false,"focus":false,"fullscreen":true,"label":"overlay","resizable":false,"skipTaskbar":true,"title":"Chiikawa Pet Overlay","transparent":true,"url":"overlay.html","visible":true}],"withGlobalTauri":true},"build":{"frontendDist":"../src"},"bundle":{"active":true,"category":"Utility","icon":["icons/icon.png"],"targets":["nsis"]},"identifier":"com.chiikawa.pet","productName":"Chiikawa Pet","version":"1.1.0"}
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Chiikawa Pet - 컨트롤 패널",
+        "width": 560,
+        "height": 680,
+        "resizable": true
+      },
+      {
+        "label": "pet-0",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-1",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-2",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-3",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-4",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-5",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-6",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-7",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-8",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-9",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-10",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "pet-11",
+        "url": "pet.html",
+        "title": "Chiikawa Pet",
+        "width": 220,
+        "height": 240,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      }
+    ],
+    "withGlobalTauri": true
+  },
+  "build": {
+    "frontendDist": "../src"
+  },
+  "bundle": {
+    "active": true,
+    "category": "Utility",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "targets": [
+      "nsis"
+    ]
+  },
+  "identifier": "com.chiikawa.pet",
+  "productName": "Chiikawa Pet",
+  "version": "1.2.0"
+}

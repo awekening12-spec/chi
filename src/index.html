@@ -82,7 +82,7 @@ footer p{font-size:11px;color:var(--sub)}
 <div class="grid" id="grid" role="list"></div>
 </section>
 <section id="view-pets" style="display:none">
-<div class="hint">펫들은 화면 위를 자유롭게 돌아다닙니다. 오버레이는 클릭이 통과되니 바탕화면 작업에 방해되지 않아요.<br>정지·제거·크기는 이 패널에서 조절하세요.</div>
+<div class="hint">펫들은 화면 위를 자유롭게 돌아다닙니다. 펫을 <b>드래그</b>하면 직접 옮길 수 있고, <b>우클릭</b>하면 제거됩니다.<br>정지·제거·크기는 이 패널에서도 조절하세요.</div>
 <h2 class="sec">내 펫 <span id="cnt"></span></h2>
 <div id="list"></div>
 </section>
@@ -90,7 +90,7 @@ footer p{font-size:11px;color:var(--sub)}
 <footer>
 <p>© 2026 Chiikawa Pet — Fan Project</p>
 <div style="display:flex;gap:8px">
-<button class="fbtn g" id="btnOverlay">펫 숨기기</button>
+<button class="fbtn g" id="btnHide">펫 숨기기</button>
 <button class="fbtn g" id="btnStopAll2">전체 정지</button>
 <button class="fbtn p" id="btnRemoveAll">전체 제거</button>
 </div>
@@ -120,13 +120,14 @@ const THEMES=[
 {n:'스카이',c:'#7DD3FC',bg:'#F0F9FF'},
 {n:'레몬',c:'#FDE68A',bg:'#FFFEF5'},
 ];
-const MAX_PETS=20;
+const POOL_SIZE=12;
+const MAX_PETS=POOL_SIZE;
 /* ===== 상태 ===== */
-let pets=[];
+let pets=[];          // {uid,label,charId,name,stopped}
 let uid=0;
 let petScale=1;
-let overlayVisible=true;
-/* ===== Tauri 이벤트 브리지 (v1.1: 동적 창 생성 없음) ===== */
+let petsVisible=true;
+/* ===== Tauri 이벤트 브리지 (v1.2: 정적 슬롯 풀, 동적 창 생성 없음) ===== */
 const TAU=(typeof window!=='undefined')?window.__TAURI__:null;
 const hasTauri=!!(TAU&&TAU.event);
 function emit(name,payload){
@@ -145,70 +146,68 @@ function safeLS(k,v){
 function savePets(){
   safeLS('chiikawa-pets-v1',JSON.stringify(pets.map(p=>({charId:p.charId,stopped:p.stopped}))));
 }
-function loadPets(){
-  try{
-    const raw=safeLS('chiikawa-pets-v1');
-    if(!raw)return;
-    const arr=JSON.parse(raw);
-    if(!Array.isArray(arr))return;
-    arr.slice(0,MAX_PETS).forEach(s=>{
-      const ch=CHARS.find(c=>c[0]===s.charId);
-      if(ch)pets.push({uid:++uid,charId:ch[0],name:ch[1],stopped:!!s.stopped});
-    });
-  }catch(e){}
+function freeLabel(){
+  for(let i=0;i<POOL_SIZE;i++){
+    const label='pet-'+i;
+    if(!pets.some(p=>p.label===label))return label;
+  }
+  return null;
 }
-/* ===== 펫 관리 (오버레이에 이벤트 전송) ===== */
+/* ===== 펫 관리 (슬롯 창에 이벤트 전송) ===== */
 async function addPet(charId){
   const ch=CHARS.find(c=>c[0]===charId);
   if(!ch)return;
-  if(pets.length>=MAX_PETS){alert('최대 '+MAX_PETS+'마리까지 가능합니다');return;}
   if(!hasTauri){alert('Tauri 환경에서 실행해주세요');return;}
-  const p={uid:++uid,charId:ch[0],name:ch[1],stopped:false};
+  const label=freeLabel();
+  if(!label){alert('최대 '+MAX_PETS+'마리까지 가능합니다');return;}
+  const p={uid:++uid,label: label,charId:ch[0],name:ch[1],stopped:false};
   pets.push(p);
-  await emit('pet-add',{uid:p.uid,charId:p.charId});
+  await emit('pet-assign',{label: label,uid:p.uid,charId:p.charId});
+  await emit('pet-size',{scale:petScale});
   savePets();renderPets();
-  switchTab('pets'); // 추가 후 내 펫 탭으로 이동
+  switchTab('pets');
 }
 async function togglePet(u){
   const p=pets.find(x=>x.uid===u);
   if(!p)return;
   p.stopped=!p.stopped;
-  await emit('pet-toggle',{uid:u});
+  await emit('pet-toggle',{label:p.label});
   savePets();renderPets();
 }
 async function removePet(u){
   const i=pets.findIndex(x=>x.uid===u);
   if(i<0)return;
+  const p=pets[i];
   pets.splice(i,1);
-  await emit('pet-remove',{uid:u});
+  await emit('pet-hide',{label:p.label});
   savePets();renderPets();
 }
 async function stopAll(){
   const jobs=pets.filter(p=>!p.stopped).map(async p=>{
     p.stopped=true;
-    await emit('pet-toggle',{uid:p.uid});
+    await emit('pet-toggle',{label:p.label});
   });
   await Promise.all(jobs);
   savePets();renderPets();
 }
 async function removeAll(){
   pets=[];
-  await emit('pet-clear',{});
+  await emit('pets-clear',{});
   savePets();renderPets();
 }
-async function toggleOverlay(){
-  overlayVisible=!overlayVisible;
-  await emit('overlay-visibility',{visible:overlayVisible});
-  $('btnOverlay').textContent=overlayVisible?'펫 숨기기':'펫 보이기';
+async function togglePetsVisibility(){
+  petsVisible=!petsVisible;
+  await emit('pets-visibility',{visible:petsVisible});
+  $('btnHide').textContent=petsVisible?'펫 숨기기':'펫 보이기';
 }
-/* 오버레이가 준비되면 전체 상태 재동기화 */
-async function syncToOverlay(){
-  for(const p of pets){
-    await emit('pet-add',{uid:p.uid,charId:p.charId});
-    if(p.stopped)await emit('pet-toggle',{uid:p.uid});
-  }
+/* 펫 창이 준비되면 해당 슬롯 상태 재전송 (부팅 순서 무관) */
+async function syncSlot(label){
+  const p=pets.find(x=>x.label===label);
+  if(!p)return;
+  await emit('pet-assign',{label:p.label,uid:p.uid,charId:p.charId});
+  if(p.stopped)await emit('pet-toggle',{label:p.label});
   await emit('pet-size',{scale:petScale});
-  await emit('overlay-visibility',{visible:overlayVisible});
+  if(!petsVisible)await emit('pets-visibility',{visible:false});
 }
 /* ===== 렌더링 ===== */
 function renderChars(){
@@ -284,22 +283,39 @@ document.querySelectorAll('.tabs button').forEach(b=>{
 $('btnSettings').addEventListener('click',toggleSettings);
 $('btnStopAll').addEventListener('click',stopAll);
 $('btnStopAll2').addEventListener('click',stopAll);
-$('btnOverlay').addEventListener('click',toggleOverlay);
+$('btnHide').addEventListener('click',togglePetsVisibility);
 $('btnRemoveAll').addEventListener('click',()=>{
   if(pets.length&&confirm(pets.length+'마리를 모두 제거할까요?'))removeAll();
 });
 $('petSize').addEventListener('input',e=>setSize(e.target.value));
 /* ===== 초기화 ===== */
 (function init(){
-  renderChars();renderThemes();
-  loadPets();renderPets();
+  renderChars();renderThemes();renderPets();
   const st=safeLS('chiikawa-theme');
   if(st!==null&&THEMES[+st])setTheme(+st);
   const sz=safeLS('chiikawa-size');
-  if(sz!==null){$('petSize').value=sz;setSize(parseFloat(sz));}
+  if(sz!==null){$('petSize').value=sz;petScale=parseFloat(sz)||1;$('sizeVal').textContent=Math.round(petScale*100)+'%';}
+  // 저장된 펫 복원 (슬롯은 pet-ready 때 재할당)
+  try{
+    const raw=safeLS('chiikawa-pets-v1');
+    if(raw){
+      const arr=JSON.parse(raw);
+      if(Array.isArray(arr)){
+        arr.slice(0,MAX_PETS).forEach((s,i)=>{
+          const ch=CHARS.find(c=>c[0]===s.charId);
+          if(ch)pets.push({uid:++uid,label:'pet-'+i,charId:ch[0],name:ch[1],stopped:!!s.stopped});
+        });
+        renderPets();
+      }
+    }
+  }catch(e){}
   if(hasTauri){
-    // 오버레이 준비되면 상태 동기화 (양쪽 부팅 순서 무관)
-    TAU.event.listen('overlay-ready',()=>{syncToOverlay();}).catch(()=>{});
+    TAU.event.listen('pet-ready',e=>{const d=e.payload||{};if(d.label)syncSlot(d.label);}).catch(()=>{});
+    TAU.event.listen('pet-closed',e=>{
+      const d=e.payload||{};
+      const i=pets.findIndex(p=>p.label===d.label);
+      if(i>=0){pets.splice(i,1);savePets();renderPets();}
+    }).catch(()=>{});
     TAU.event.emit('main-ready',{}).catch(()=>{});
   }
 })();
