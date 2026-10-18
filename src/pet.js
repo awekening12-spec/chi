@@ -1,18 +1,14 @@
 'use strict';
-/* ===== Chiikawa Pet Window (v1.3 static pool) =====
+/* ===== Chiikawa Pet Window (v1.4 static pool) =====
  * 정적으로 선언된 pet-N 슬롯 중 하나. 메인 창의 이벤트로만 제어된다.
- * - pet-assign {label, uid, charId} : 펫 배치 + 창 표시
- * - pet-show / pet-hide {label}    : 표시 / 숨김
- * - pet-toggle {label}             : 정지 토글
- * - pet-size {scale}               : 전체 크기 (브로드캐스트)
- * - pets-clear {}                  : 전체 숨김 (브로드캐스트)
- * - pets-visibility {visible}      : 전체 표시/숨김 (브로드캐스트)
- * 동적 창 생성 없음. 드래그는 startDragging(), 우클릭은 제거.
- * 스프라이트 시트에 walk 사이클이 없어서(11행 전부 idle/감정),
- * 애니메이션은 단일 idle 행 고정 + 창 이동으로 돌아다니는 것처럼 표현.
+ * 스프라이트 시트 실측: 11행 전부 idle/감정 모션 (walk 사이클 없음).
+ * - 기본 idle 행에서 천천히(280ms) 프레임 전환
+ * - 12~25초마다 40% 확률로 happy 행으로 2.5초간 감정 표현 후 복귀
+ * - 이동은 창 움직임으로 표현
  */
 const COLS = 8, CELL_W = 192, CELL_H = 208;
-const IDLE_ROW = 0;
+const IDLE_ROWS = [0, 2];       // 차분한 idle (바운딩박스 실측 일치)
+const HAPPY_ROWS = [4, 6, 9];   // 밝은 감정
 const TAU = window.__TAURI__;
 
 let myLabel = '';
@@ -24,13 +20,17 @@ let scaleFactor = 1;
 let petScale = 1;
 let dragging = false;
 
+const spriteCache = {};
 let sprite = new Image();
 let spriteLoaded = false;
+let isPlaceholder = false;
 const canvas = document.getElementById('pet');
 const ctx = canvas.getContext('2d');
 
-let frame = 0;
-const row = IDLE_ROW;
+let frame = 0, frameTick = 0;
+let idleRow = IDLE_ROWS[0], curRow = IDLE_ROWS[0];
+let emoTimer = 80 + Math.random() * 80;  // 다음 감정까지 (틱)
+let emoHold = 0;                          // 감정 유지 틱
 let x = 0, y = 0, vx = 0, vy = 0;
 let state = 'idle', stateTimer = 0;
 let stopped = false;
@@ -59,20 +59,74 @@ async function placeWindow() {
   } catch (e) {}
 }
 
+function loadSprite(id) {
+  spriteLoaded = false;
+  isPlaceholder = false;
+  if (spriteCache[id]) {
+    sprite = spriteCache[id];
+    spriteLoaded = true;
+    draw();
+    return;
+  }
+  // 썸네일 플레이스홀더로 즉시 표시
+  const ph = new Image();
+  ph.onload = () => {
+    if (!spriteLoaded) { sprite = ph; isPlaceholder = true; spriteLoaded = true; draw(); }
+  };
+  ph.src = 'assets/thumb_' + id + '.png';
+  const img = new Image();
+  img.onload = () => {
+    sprite = img; spriteLoaded = true; isPlaceholder = false;
+    spriteCache[id] = img;
+    draw();
+  };
+  img.onerror = () => {
+    // 풀 스프라이트 실패 시 썸네일로 유지
+    if (isPlaceholder) { spriteCache[id] = sprite; }
+  };
+  img.src = 'assets/' + id + '.png';
+}
+
 function draw() {
   if (!spriteLoaded) return;
   ctx.clearRect(0, 0, CELL_W, CELL_H);
-  const sx = (frame % COLS) * CELL_W;
-  const sy = row * CELL_H;
   ctx.save();
   if (vx < 0) { ctx.scale(-1, 1); ctx.translate(-CELL_W, 0); }
-  ctx.drawImage(sprite, sx, sy, CELL_W, CELL_H, 0, 0, CELL_W, CELL_H);
+  if (isPlaceholder) {
+    ctx.drawImage(sprite, 0, 0, CELL_W, CELL_H);
+  } else {
+    const sx = (frame % COLS) * CELL_W;
+    const sy = curRow * CELL_H;
+    ctx.drawImage(sprite, sx, sy, CELL_W, CELL_H, 0, 0, CELL_W, CELL_H);
+  }
   ctx.restore();
 }
 
 function tick() {
   if (!assigned || dragging) { draw(); return; }
   if (stopped) { draw(); return; }
+
+  // 프레임은 천천히 (280ms)
+  frameTick++;
+  if (frameTick >= 3) { frameTick = 0; frame = (frame + 1) % COLS; }
+
+  // 감정 전환
+  if (emoHold > 0) {
+    emoHold--;
+    if (emoHold === 0) { curRow = idleRow; frame = 0; }
+  } else {
+    emoTimer--;
+    if (emoTimer <= 0) {
+      emoTimer = 120 + Math.random() * 130; // 12~25초
+      if (Math.random() < 0.4) {
+        curRow = HAPPY_ROWS[Math.floor(Math.random() * HAPPY_ROWS.length)];
+        emoHold = 25; // 2.5초
+        frame = 0;
+      }
+    }
+  }
+
+  // 이동 상태머신
   stateTimer--;
   if (stateTimer <= 0) {
     if (state === 'idle') {
@@ -87,7 +141,6 @@ function tick() {
       vx = 0; vy = 0;
       stateTimer = 60 + Math.random() * 180;
     }
-    frame = 0;
   }
   if (state === 'walk') {
     x += vx; y += vy;
@@ -99,7 +152,6 @@ function tick() {
     if (y > sh - H) { y = Math.max(0, sh - H); vy *= -1; }
     placeWindow();
   }
-  frame = (frame + 1) % COLS;
   draw();
 }
 
@@ -112,20 +164,16 @@ async function onAssign(d) {
   assigned = true;
   stopped = false;
   document.body.classList.remove('stopped');
-  spriteLoaded = false;
-  const img = new Image();
-  img.onload = () => { sprite = img; spriteLoaded = true; draw(); };
-  img.onerror = () => {
-    const fb = new Image();
-    fb.src = 'assets/thumb_' + charId + '.png';
-    fb.onload = () => { sprite = fb; spriteLoaded = true; draw(); };
-  };
-  img.src = 'assets/' + charId + '.png';
+  idleRow = IDLE_ROWS[Math.floor(Math.random() * IDLE_ROWS.length)];
+  curRow = idleRow;
+  frame = 0; frameTick = 0;
+  emoTimer = 80 + Math.random() * 80;
+  emoHold = 0;
+  vx = 0; vy = 0; state = 'idle'; stateTimer = 60 + Math.random() * 120;
+  loadSprite(charId);
   const sw = window.screen.width, sh = window.screen.height;
   x = Math.random() * Math.max(1, sw - cssW());
   y = Math.random() * Math.max(1, sh - cssH());
-  vx = 0; vy = 0; state = 'idle'; stateTimer = 60 + Math.random() * 120;
-  frame = Math.floor(Math.random() * COLS);
   await applyWindowSize();
   await placeWindow();
   try { await win.show(); } catch (e) { console.warn('show 실패', e); }
