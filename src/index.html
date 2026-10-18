@@ -37,7 +37,7 @@ main{padding:32px 40px}
 .card:hover img{transform:scale(1.08)}
 .card .n{font-size:14px;font-weight:600}
 .card .e{font-size:10px;color:var(--sub);letter-spacing:1px;margin-top:4px;text-transform:uppercase}
-h2.sec{font-size:16px;font-weight:700;margin:36px 0 16px;letter-spacing:-.2px}
+h2.sec{font-size:16px;font-weight:700;margin:0 0 16px;letter-spacing:-.2px}
 h2.sec span{font-weight:400;color:var(--sub);font-size:13px}
 .prow{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
 .prow img{width:44px;height:48px;image-rendering:pixelated}
@@ -49,6 +49,7 @@ h2.sec span{font-weight:400;color:var(--sub);font-size:13px}
 .pbtn.danger{color:var(--accent);border-color:#FECACA}
 .pbtn.danger:hover{background:var(--accent-bg)}
 .empty{padding:48px;text-align:center;color:var(--sub);font-size:14px;border:1px dashed var(--line);border-radius:14px}
+.hint{font-size:12px;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:20px;line-height:1.6}
 footer{padding:24px 40px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
 footer p{font-size:11px;color:var(--sub)}
 .fbtn{padding:10px 24px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
@@ -77,13 +78,19 @@ footer p{font-size:11px;color:var(--sub)}
 <span id="sizeVal" style="margin-left:8px;font-size:13px">100%</span></div>
 </section>
 <main>
+<section id="view-chars">
 <div class="grid" id="grid" role="list"></div>
-<h2 class="sec" id="mypets">내 펫 <span id="cnt"></span></h2>
+</section>
+<section id="view-pets" style="display:none">
+<div class="hint">펫들은 화면 위를 자유롭게 돌아다닙니다. 오버레이는 클릭이 통과되니 바탕화면 작업에 방해되지 않아요.<br>정지·제거·크기는 이 패널에서 조절하세요.</div>
+<h2 class="sec">내 펫 <span id="cnt"></span></h2>
 <div id="list"></div>
+</section>
 </main>
 <footer>
 <p>© 2026 Chiikawa Pet — Fan Project</p>
 <div style="display:flex;gap:8px">
+<button class="fbtn g" id="btnOverlay">펫 숨기기</button>
 <button class="fbtn g" id="btnStopAll2">전체 정지</button>
 <button class="fbtn p" id="btnRemoveAll">전체 제거</button>
 </div>
@@ -117,161 +124,184 @@ const MAX_PETS=20;
 /* ===== 상태 ===== */
 let pets=[];
 let uid=0;
+let petScale=1;
+let overlayVisible=true;
+/* ===== Tauri 이벤트 브리지 (v1.1: 동적 창 생성 없음) ===== */
+const TAU=(typeof window!=='undefined')?window.__TAURI__:null;
+const hasTauri=!!(TAU&&TAU.event);
+function emit(name,payload){
+  if(!hasTauri)return Promise.resolve();
+  try{return TAU.event.emit(name,payload||{}).catch(e=>console.warn('emit 실패:',name,e));}
+  catch(e){console.warn('emit 실패:',name,e);return Promise.resolve();}
+}
 /* ===== 유틸 ===== */
 const $=id=>document.getElementById(id);
-const isTauri=()=>!!(window.__TAURI__&&window.__TAURI__.webviewWindow);
 function safeLS(k,v){
-try{
-if(v===undefined)return localStorage.getItem(k);
-localStorage.setItem(k,v);return true;
-}catch(e){return v===undefined?null:false;}
+  try{
+    if(v===undefined)return localStorage.getItem(k);
+    localStorage.setItem(k,v);return true;
+  }catch(e){return v===undefined?null:false;}
 }
-/* ===== 펫 관리 ===== */
+function savePets(){
+  safeLS('chiikawa-pets-v1',JSON.stringify(pets.map(p=>({charId:p.charId,stopped:p.stopped}))));
+}
+function loadPets(){
+  try{
+    const raw=safeLS('chiikawa-pets-v1');
+    if(!raw)return;
+    const arr=JSON.parse(raw);
+    if(!Array.isArray(arr))return;
+    arr.slice(0,MAX_PETS).forEach(s=>{
+      const ch=CHARS.find(c=>c[0]===s.charId);
+      if(ch)pets.push({uid:++uid,charId:ch[0],name:ch[1],stopped:!!s.stopped});
+    });
+  }catch(e){}
+}
+/* ===== 펫 관리 (오버레이에 이벤트 전송) ===== */
 async function addPet(charId){
-const ch=CHARS.find(c=>c[0]===charId);
-if(!ch){console.error('Unknown char:',charId);return;}
-if(pets.length>=MAX_PETS){alert(`최대 ${MAX_PETS}마리까지 가능합니다`);return;}
-if(!isTauri()){alert('Tauri 환경에서 실행해주세요\n(window.__TAURI__ 없음)');return;}
-const myUid=++uid;
-const label=`pet-${Date.now()}-${myUid.toString(36)}`;
-try{
-const {WebviewWindow}=window.__TAURI__.webviewWindow;
-const win=new WebviewWindow(label,{
-url:`/pet.html?pet=${encodeURIComponent(charId)}`,
-title:ch[1],width:220,height:240,
-decorations:false,transparent:true,alwaysOnTop:true,
-resizable:false,skipTaskbar:true,visible:true,focus:false
-});
-// 생성 성공/실패 이벤트 대기 (Tauri v2 비동기)
-const created=new Promise((resolve,reject)=>{
-const to=setTimeout(()=>reject(new Error('생성 타임아웃 (10초)')),10000);
-win.once('tauri://created',()=>{clearTimeout(to);resolve();});
-win.once('tauri://error',(e)=>{clearTimeout(to);reject(new Error(e.payload||'알 수 없는 오류'));});
-});
-await created;
-const pet={uid:myUid,label,id:charId,name:ch[1],win,stopped:false,createdAt:Date.now()};
-pets.push(pet);
-try{await win.onCloseRequested(()=>{removePetByUid(pet.uid);});}catch(e){}
-renderPets();
-}catch(e){
-console.error('펫 생성 실패:',e);
-alert('펫 생성에 실패했습니다\n'+(e&&e.message?e.message:e));
-}
-}
-function removePetByUid(u){
-const i=pets.findIndex(p=>p.uid===u);
-if(i>=0){pets.splice(i,1);renderPets();}
+  const ch=CHARS.find(c=>c[0]===charId);
+  if(!ch)return;
+  if(pets.length>=MAX_PETS){alert('최대 '+MAX_PETS+'마리까지 가능합니다');return;}
+  if(!hasTauri){alert('Tauri 환경에서 실행해주세요');return;}
+  const p={uid:++uid,charId:ch[0],name:ch[1],stopped:false};
+  pets.push(p);
+  await emit('pet-add',{uid:p.uid,charId:p.charId});
+  savePets();renderPets();
+  switchTab('pets'); // 추가 후 내 펫 탭으로 이동
 }
 async function togglePet(u){
-const p=pets.find(x=>x.uid===u);
-if(!p)return;
-p.stopped=!p.stopped;
-try{await p.win.emit('pet-stop');}catch(e){console.warn('emit 실패:',e);}
-renderPets();
+  const p=pets.find(x=>x.uid===u);
+  if(!p)return;
+  p.stopped=!p.stopped;
+  await emit('pet-toggle',{uid:u});
+  savePets();renderPets();
 }
 async function removePet(u){
-const p=pets.find(x=>x.uid===u);
-if(!p)return;
-try{await p.win.close();}catch(e){console.warn('close 실패:',e);}
-removePetByUid(u);
+  const i=pets.findIndex(x=>x.uid===u);
+  if(i<0)return;
+  pets.splice(i,1);
+  await emit('pet-remove',{uid:u});
+  savePets();renderPets();
 }
 async function stopAll(){
-const jobs=pets.filter(p=>!p.stopped).map(async p=>{
-p.stopped=true;
-try{await p.win.emit('pet-stop');}catch(e){}
-});
-await Promise.allSettled(jobs);
-renderPets();
+  const jobs=pets.filter(p=>!p.stopped).map(async p=>{
+    p.stopped=true;
+    await emit('pet-toggle',{uid:p.uid});
+  });
+  await Promise.all(jobs);
+  savePets();renderPets();
 }
 async function removeAll(){
-const jobs=pets.map(async p=>{try{await p.win.close();}catch(e){}});
-await Promise.allSettled(jobs);
-pets=[];
-renderPets();
+  pets=[];
+  await emit('pet-clear',{});
+  savePets();renderPets();
+}
+async function toggleOverlay(){
+  overlayVisible=!overlayVisible;
+  await emit('overlay-visibility',{visible:overlayVisible});
+  $('btnOverlay').textContent=overlayVisible?'펫 숨기기':'펫 보이기';
+}
+/* 오버레이가 준비되면 전체 상태 재동기화 */
+async function syncToOverlay(){
+  for(const p of pets){
+    await emit('pet-add',{uid:p.uid,charId:p.charId});
+    if(p.stopped)await emit('pet-toggle',{uid:p.uid});
+  }
+  await emit('pet-size',{scale:petScale});
+  await emit('overlay-visibility',{visible:overlayVisible});
 }
 /* ===== 렌더링 ===== */
 function renderChars(){
-const g=$('grid');g.innerHTML='';
-CHARS.forEach(([id,name,en,color])=>{
-const d=document.createElement('div');
-d.className='card';d.setAttribute('role','listitem');d.tabIndex=0;
-d.style.setProperty('--card-accent',color);
-d.innerHTML=`<img src="assets/thumb_${id}.png" alt="${name}"><div class="n">${name}</div><div class="e">${en}</div>`;
-d.addEventListener('click',()=>addPet(id));
-d.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();addPet(id);}});
-g.appendChild(d);
-});
+  const g=$('grid');g.innerHTML='';
+  CHARS.forEach(([id,name,en,color])=>{
+    const d=document.createElement('div');
+    d.className='card';d.setAttribute('role','listitem');d.tabIndex=0;
+    d.style.setProperty('--card-accent',color);
+    d.innerHTML='<img src="assets/thumb_'+id+'.png" alt="'+name+'"><div class="n">'+name+'</div><div class="e">'+en+'</div>';
+    d.addEventListener('click',()=>addPet(id));
+    d.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();addPet(id);}});
+    g.appendChild(d);
+  });
 }
 function renderPets(){
-const el=$('list');
-$('cnt').textContent=pets.length?`· ${pets.length}마리`:'';
-if(!pets.length){el.innerHTML='<div class="empty">캐릭터를 선택해 펫을 추가하세요</div>';return;}
-el.innerHTML='';
-pets.forEach(p=>{
-const d=document.createElement('div');d.className='prow';
-d.innerHTML=`<img src="assets/thumb_${p.id}.png" alt="${p.name}">`+
-`<div class="i"><div class="n">${p.name}</div>`+
-`<div class="s"><span class="dot ${p.stopped?'off':'on'}"></span>${p.stopped?'정지됨':'활동 중'}</div></div>`;
-const bT=document.createElement('button');bT.className='pbtn';bT.textContent=p.stopped?'재개':'정지';
-bT.addEventListener('click',()=>togglePet(p.uid));
-const bR=document.createElement('button');bR.className='pbtn danger';bR.textContent='제거';
-bR.addEventListener('click',()=>removePet(p.uid));
-d.append(bT,bR);el.appendChild(d);
-});
+  const el=$('list');
+  $('cnt').textContent=pets.length?('· '+pets.length+'마리'):'';
+  if(!pets.length){el.innerHTML='<div class="empty">캐릭터를 선택해 펫을 추가하세요</div>';return;}
+  el.innerHTML='';
+  pets.forEach(p=>{
+    const d=document.createElement('div');d.className='prow';
+    d.innerHTML='<img src="assets/thumb_'+p.charId+'.png" alt="'+p.name+'">'+
+      '<div class="i"><div class="n">'+p.name+'</div>'+
+      '<div class="s"><span class="dot '+(p.stopped?'off':'on')+'"></span>'+(p.stopped?'정지됨':'활동 중')+'</div></div>';
+    const bT=document.createElement('button');bT.className='pbtn';bT.textContent=p.stopped?'재개':'정지';
+    bT.addEventListener('click',()=>togglePet(p.uid));
+    const bR=document.createElement('button');bR.className='pbtn danger';bR.textContent='제거';
+    bR.addEventListener('click',()=>removePet(p.uid));
+    d.append(bT,bR);el.appendChild(d);
+  });
 }
 /* ===== 테마 ===== */
 function renderThemes(){
-const te=$('themes');te.innerHTML='';
-THEMES.forEach((t,i)=>{
-const b=document.createElement('button');
-b.className='theme-btn'+(i===0?' sel':'');
-b.style.background=t.c;b.title=t.n;b.setAttribute('aria-label',t.n+' 테마');
-b.addEventListener('click',()=>setTheme(i));
-te.appendChild(b);
-});
+  const te=$('themes');te.innerHTML='';
+  THEMES.forEach((t,i)=>{
+    const b=document.createElement('button');
+    b.className='theme-btn'+(i===0?' sel':'');
+    b.style.background=t.c;b.title=t.n;b.setAttribute('aria-label',t.n+' 테마');
+    b.addEventListener('click',()=>setTheme(i));
+    te.appendChild(b);
+  });
 }
 function setTheme(i){
-const t=THEMES[i];if(!t)return;
-document.documentElement.style.setProperty('--accent',t.c);
-document.body.style.background=t.bg;
-[...$('themes').children].forEach((b,j)=>b.classList.toggle('sel',j===i));
-safeLS('chiikawa-theme',String(i));
+  const t=THEMES[i];if(!t)return;
+  document.documentElement.style.setProperty('--accent',t.c);
+  document.body.style.background=t.bg;
+  Array.prototype.forEach.call($('themes').children,(b,j)=>b.classList.toggle('sel',j===i));
+  safeLS('chiikawa-theme',String(i));
 }
 /* ===== 설정 ===== */
 function toggleSettings(){
-const s=$('settings');
-s.style.display=s.style.display==='block'?'none':'block';
+  const s=$('settings');
+  s.style.display=s.style.display==='block'?'none':'block';
 }
 function setSize(v){
-v=parseFloat(v);
-if(isNaN(v)||v<0.5||v>2)return;
-$('sizeVal').textContent=Math.round(v*100)+'%';
-safeLS('chiikawa-size',String(v));
+  v=parseFloat(v);
+  if(isNaN(v)||v<0.5||v>2)return;
+  petScale=v;
+  $('sizeVal').textContent=Math.round(v*100)+'%';
+  safeLS('chiikawa-size',String(v));
+  emit('pet-size',{scale:v});
 }
-/* ===== 탭 ===== */
+/* ===== 탭 (진짜 전환) ===== */
+function switchTab(name){
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+  $('view-chars').style.display=name==='pets'?'none':'block';
+  $('view-pets').style.display=name==='pets'?'block':'none';
+}
 document.querySelectorAll('.tabs button').forEach(b=>{
-b.addEventListener('click',()=>{
-document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));
-b.classList.add('active');
-if(b.dataset.tab==='pets')$('mypets').scrollIntoView({behavior:'smooth'});
-else window.scrollTo({top:0,behavior:'smooth'});
-});
+  b.addEventListener('click',()=>switchTab(b.dataset.tab));
 });
 /* ===== 이벤트 바인딩 ===== */
 $('btnSettings').addEventListener('click',toggleSettings);
 $('btnStopAll').addEventListener('click',stopAll);
 $('btnStopAll2').addEventListener('click',stopAll);
+$('btnOverlay').addEventListener('click',toggleOverlay);
 $('btnRemoveAll').addEventListener('click',()=>{
-if(pets.length&&confirm(`${pets.length}마리를 모두 제거할까요?`))removeAll();
+  if(pets.length&&confirm(pets.length+'마리를 모두 제거할까요?'))removeAll();
 });
 $('petSize').addEventListener('input',e=>setSize(e.target.value));
 /* ===== 초기화 ===== */
 (function init(){
-renderChars();renderThemes();renderPets();
-const st=safeLS('chiikawa-theme');
-if(st!==null&&THEMES[+st])setTheme(+st);
-const sz=safeLS('chiikawa-size');
-if(sz!==null){$('petSize').value=sz;setSize(sz);}
+  renderChars();renderThemes();
+  loadPets();renderPets();
+  const st=safeLS('chiikawa-theme');
+  if(st!==null&&THEMES[+st])setTheme(+st);
+  const sz=safeLS('chiikawa-size');
+  if(sz!==null){$('petSize').value=sz;setSize(parseFloat(sz));}
+  if(hasTauri){
+    // 오버레이 준비되면 상태 동기화 (양쪽 부팅 순서 무관)
+    TAU.event.listen('overlay-ready',()=>{syncToOverlay();}).catch(()=>{});
+    TAU.event.emit('main-ready',{}).catch(()=>{});
+  }
 })();
 </script>
 </body>
