@@ -5,10 +5,10 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:transparent}
-body{-webkit-app-region:drag;user-select:none;-webkit-user-select:none;cursor:grab}
+body{user-select:none;-webkit-user-select:none;cursor:grab}
 body:active{cursor:grabbing}
 #wrap{position:relative;width:100%;height:100%}
-#pet{width:100%;height:100%;image-rendering:pixelated;display:block;pointer-events:none}
+#pet{width:100%;height:100%;image-rendering:pixelated;display:block}
 #badge{position:absolute;top:6px;right:8px;font-size:22px;line-height:1;display:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45));pointer-events:none}
 body.stopped #badge{display:block}
 body.stopped #pet{opacity:.6}

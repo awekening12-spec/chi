@@ -1,5 +1,5 @@
 'use strict';
-/* ===== Chiikawa Pet Window (v1.2 static pool) =====
+/* ===== Chiikawa Pet Window (v1.3 static pool) =====
  * 정적으로 선언된 pet-N 슬롯 중 하나. 메인 창의 이벤트로만 제어된다.
  * - pet-assign {label, uid, charId} : 펫 배치 + 창 표시
  * - pet-show / pet-hide {label}    : 표시 / 숨김
@@ -7,9 +7,12 @@
  * - pet-size {scale}               : 전체 크기 (브로드캐스트)
  * - pets-clear {}                  : 전체 숨김 (브로드캐스트)
  * - pets-visibility {visible}      : 전체 표시/숨김 (브로드캐스트)
- * 동적 창 생성 없음. 드래그는 -webkit-app-region, 우클릭은 제거.
+ * 동적 창 생성 없음. 드래그는 startDragging(), 우클릭은 제거.
+ * 스프라이트 시트에 walk 사이클이 없어서(11행 전부 idle/감정),
+ * 애니메이션은 단일 idle 행 고정 + 창 이동으로 돌아다니는 것처럼 표현.
  */
 const COLS = 8, CELL_W = 192, CELL_H = 208;
+const IDLE_ROW = 0;
 const TAU = window.__TAURI__;
 
 let myLabel = '';
@@ -19,13 +22,15 @@ let uid = null;
 let charId = 'chiikawa';
 let scaleFactor = 1;
 let petScale = 1;
+let dragging = false;
 
 let sprite = new Image();
 let spriteLoaded = false;
 const canvas = document.getElementById('pet');
 const ctx = canvas.getContext('2d');
 
-let frame = 0, row = 0;
+let frame = 0;
+const row = IDLE_ROW;
 let x = 0, y = 0, vx = 0, vy = 0;
 let state = 'idle', stateTimer = 0;
 let stopped = false;
@@ -66,19 +71,19 @@ function draw() {
 }
 
 function tick() {
-  if (!assigned) return;
+  if (!assigned || dragging) { draw(); return; }
   if (stopped) { draw(); return; }
   stateTimer--;
   if (stateTimer <= 0) {
     if (state === 'idle') {
-      state = 'walk'; row = 1;
+      state = 'walk';
       const a = Math.random() * Math.PI * 2;
       const sp = 1 + Math.random() * 1.4;
       vx = Math.cos(a) * sp;
       vy = Math.sin(a) * sp * 0.55;
       stateTimer = 120 + Math.random() * 140;
     } else {
-      state = 'idle'; row = 0;
+      state = 'idle';
       vx = 0; vy = 0;
       stateTimer = 60 + Math.random() * 180;
     }
@@ -92,11 +97,9 @@ function tick() {
     if (x > sw - W) { x = Math.max(0, sw - W); vx *= -1; }
     if (y < 0) { y = 0; vy *= -1; }
     if (y > sh - H) { y = Math.max(0, sh - H); vy *= -1; }
-    frame = (frame + 1) % COLS;
     placeWindow();
-  } else {
-    frame = (frame + 1) % COLS;
   }
+  frame = (frame + 1) % COLS;
   draw();
 }
 
@@ -110,17 +113,19 @@ async function onAssign(d) {
   stopped = false;
   document.body.classList.remove('stopped');
   spriteLoaded = false;
-  sprite = new Image();
-  sprite.onload = () => { spriteLoaded = true; draw(); };
-  sprite.onerror = () => {
+  const img = new Image();
+  img.onload = () => { sprite = img; spriteLoaded = true; draw(); };
+  img.onerror = () => {
     const fb = new Image();
     fb.src = 'assets/thumb_' + charId + '.png';
     fb.onload = () => { sprite = fb; spriteLoaded = true; draw(); };
   };
-  sprite.src = 'assets/' + charId + '.png';
+  img.src = 'assets/' + charId + '.png';
   const sw = window.screen.width, sh = window.screen.height;
   x = Math.random() * Math.max(1, sw - cssW());
   y = Math.random() * Math.max(1, sh - cssH());
+  vx = 0; vy = 0; state = 'idle'; stateTimer = 60 + Math.random() * 120;
+  frame = Math.floor(Math.random() * COLS);
   await applyWindowSize();
   await placeWindow();
   try { await win.show(); } catch (e) { console.warn('show 실패', e); }
@@ -163,6 +168,25 @@ async function onVisibility(d) {
     else await win.show();
   } catch (e) {}
 }
+
+/* 드래그: OS 네이티브 드래그 사용 */
+document.addEventListener('mousedown', async (e) => {
+  if (e.button !== 0 || !assigned || dragging) return;
+  dragging = true;
+  try { await win.startDragging(); }
+  catch (err) { /* 드래그 미지원 환경 */ }
+  finally {
+    dragging = false;
+    try {
+      const p = await win.outerPosition();
+      x = p.x / scaleFactor;
+      y = p.y / scaleFactor;
+      const sw = window.screen.width, sh = window.screen.height;
+      x = Math.max(0, Math.min(sw - cssW(), x));
+      y = Math.max(0, Math.min(sh - cssH(), y));
+    } catch (err) {}
+  }
+});
 
 /* 우클릭으로 제거 */
 document.addEventListener('contextmenu', async (e) => {
